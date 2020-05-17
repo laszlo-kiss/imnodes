@@ -366,10 +366,12 @@ struct
     OptionalIndex hovered_pin_idx;
     int hovered_pin_flags;
 
-    OptionalIndex active_pin_idx;
     OptionalIndex deleted_link_idx;
 
     int element_state_change;
+
+    int active_attribute_id;
+    bool active_attribute;
 } g;
 
 EditorContext& editor_context_get()
@@ -1439,6 +1441,8 @@ void begin_attribute(
 
     EditorContext& editor = editor_context_get();
 
+    g.active_attribute_id = id;
+
     const int pin_idx = editor.pins.find_or_create_index_for(id);
     g.current_pin_idx = pin_idx;
     PinData& pin = editor.pins.pool[pin_idx];
@@ -1629,10 +1633,11 @@ void BeginNodeEditor()
     g.hovered_link_idx.reset();
     g.hovered_pin_idx.reset();
     g.hovered_pin_flags = AttributeFlags_None;
-    g.active_pin_idx.reset();
     g.deleted_link_idx.reset();
 
     g.element_state_change = ElementStateChange_None;
+
+    g.active_attribute = false;
 
     // reset ui content for the current editor
     EditorContext& editor = editor_context_get();
@@ -1803,6 +1808,19 @@ void BeginOutputAttribute(const int id, const PinShape shape)
     begin_attribute(id, AttributeType_Output, shape, g.current_node_idx);
 }
 
+void BeginStaticAttribute(const int id)
+{
+    // Make sure to call BeginNode() before calling
+    // BeginAttribute()
+    assert(g.current_scope == Scope_Node);
+    g.current_scope = Scope_Attribute;
+
+    g.active_attribute_id = id;
+
+    ImGui::BeginGroup();
+    ImGui::PushID(id);
+}
+
 void EndAttribute()
 {
     assert(g.current_scope == Scope_Attribute);
@@ -1813,8 +1831,11 @@ void EndAttribute()
 
     if (ImGui::IsItemActive())
     {
-        g.active_pin_idx = g.current_pin_idx;
+        g.active_attribute = true;
     }
+
+    // lkjhlkgjhlkgjhglkjh this is stupid. Now we would need extra logic to get
+    // this working...
 
     EditorContext& editor = editor_context_get();
     PinData& pin = editor.pins.pool[g.current_pin_idx];
@@ -2029,27 +2050,27 @@ bool IsAttributeActive()
 {
     assert((g.current_scope & Scope_Node) != 0);
 
-    if (!g.active_pin_idx.has_value())
+    if (!g.active_attribute)
     {
         return false;
     }
 
-    return g.active_pin_idx == g.current_pin_idx;
+    const EditorContext& editor = editor_context_get();
+    return g.active_attribute_id == editor.pins.pool[g.current_pin_idx].id;
 }
 
 bool IsAnyAttributeActive(int* const attribute_id)
 {
     assert((g.current_scope & (Scope_Node | Scope_Attribute)) == 0);
 
-    if (!g.active_pin_idx.has_value())
+    if (!g.active_attribute)
     {
         return false;
     }
 
     if (attribute_id != NULL)
     {
-        const EditorContext& editor = editor_context_get();
-        *attribute_id = editor.pins.pool[g.active_pin_idx.value()].id;
+        *attribute_id = g.active_attribute_id;
     }
 
     return true;

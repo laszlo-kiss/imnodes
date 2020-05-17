@@ -198,6 +198,7 @@ void EndNodeTitleBar();
 // The attribute ids must be unique.
 void BeginInputAttribute(int id, PinShape shape = PinShape_CircleFilled);
 void BeginOutputAttribute(int id, PinShape shape = PinShape_CircleFilled);
+void BeginStaticAttribute(int id);
 void EndAttribute();
 
 // Push a single AttributeFlags value. By default, only AttributeFlags_None is
